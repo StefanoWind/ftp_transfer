@@ -10,6 +10,8 @@ import yaml
 import glob
 import logging
 from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
 
 #%% Inputs
 source_config=os.path.join(cd,'configs','config.yaml')
