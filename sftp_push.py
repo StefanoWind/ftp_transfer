@@ -21,7 +21,7 @@ source_config=os.path.join(cd,'configs','config.yaml')
 
 #%% Functions
 
-def upload_directory(sftp, local_path, remote_path,skip_file,skip_size):
+def upload_directory(sftp, local_path, remote_path,skip_file,skip_size,max_size):
     """
     Recursively upload a local directory to a remote SFTP server.
     """
@@ -38,29 +38,32 @@ def upload_directory(sftp, local_path, remote_path,skip_file,skip_size):
             local_file = os.path.join(root, file)
             remote_file = os.path.join(remote_path, file).replace("\\", "/")
             if os.path.basename(remote_file)!='local_file_list.txt':
-                if np.sum(os.path.basename(local_file)==skip_file)==0:#file was never transfered
-                    try:
-                        remote_size=sftp.stat(remote_file).st_size
-                    except FileNotFoundError:#file does not exist on SFTP server
-                        logging.info(f"Uploading {os.path.basename(local_file)} -> {remote_file}")
-                        sftp.put(local_file, remote_file)
-                        continue
-                    if remote_size!=os.path.getsize(local_file):#file does exists on SFTP server, but size is not matching
-                        logging.info(f"Re-uploading {os.path.basename(local_file)} -> {remote_file}. Size not matching.")
-                        sftp.put(local_file, remote_file)
-                    else:#file exists on SFTP server and size matches
-                        logging.info(f"{os.path.basename(local_file)} already exists on SFTP server.")
+                if os.path.getsize(local_file)<=max_size:
+                    if np.sum(os.path.basename(local_file)==skip_file)==0:#file was never transfered
+                        try:
+                            remote_size=sftp.stat(remote_file).st_size
+                        except FileNotFoundError:#file does not exist on SFTP server
+                            logging.info(f"Uploading {os.path.basename(local_file)} -> {remote_file}")
+                            sftp.put(local_file, remote_file)
+                            continue
+                        if remote_size!=os.path.getsize(local_file):#file does exists on SFTP server, but size is not matching
+                            logging.info(f"Re-uploading {os.path.basename(local_file)} -> {remote_file}. Size not matching.")
+                            sftp.put(local_file, remote_file)
+                        else:#file exists on SFTP server and size matches
+                            logging.info(f"{os.path.basename(local_file)} already exists on SFTP server.")
+                    else:
+                        file_id=np.where(os.path.basename(local_file)==skip_file)[0][0]
+                        if os.path.getsize(local_file)!=skip_size[file_id]:#file was transfered to final location, but incompletely
+                            logging.info(f"Re-uploading {os.path.basename(local_file)} -> {remote_file}. Size not matching.")
+                            sftp.put(local_file, remote_file)
+                        else:#file was already sent to final location
+                            logging.info(f"{os.path.basename(local_file)} already exists on final location.")
+                            file_age= (time.time()-os.path.getmtime(local_file))/(3600*24)
+                            if file_age>config['time_delete']:#file can be deleted
+                                logging.info(f"Deleting {os.path.basename(local_file)} because it is {str(np.round(file_age,1))} days old.")
+                                os.remove(local_file)
                 else:
-                    file_id=np.where(os.path.basename(local_file)==skip_file)[0][0]
-                    if os.path.getsize(local_file)!=skip_size[file_id]:#file was transfered to final location, but incompletely
-                        logging.info(f"Re-uploading {os.path.basename(local_file)} -> {remote_file}. Size not matching.")
-                        sftp.put(local_file, remote_file)
-                    else:#file was already sent to final location
-                        logging.info(f"{os.path.basename(local_file)} already exists on final location.")
-                        file_age= (time.time()-os.path.getmtime(local_file))/(3600*24)
-                        if file_age>config['time_delete']:#file can be deleted
-                            logging.info(f"Deleting {os.path.basename(local_file)} because it is {str(np.round(file_age,1))} days old.")
-                            os.remove(local_file)
+                    logging.info(f"{os.path.basename(local_file)} exceedes maximum size.")
             
 #%% Initialization
 #config
@@ -103,7 +106,7 @@ except FileNotFoundError:
     skip_size=np.array([])
 
 #push local files
-upload_directory(sftp, config['push_dir'], config['remote_dir'],skip_file,skip_size)
+upload_directory(sftp, config['push_dir'], config['remote_dir'],skip_file,skip_size,config['max_size'])
 logging.info("Upload completed successfully.")
 
 #terminate
