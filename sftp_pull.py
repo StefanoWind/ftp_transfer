@@ -5,6 +5,7 @@ Pull data form SFPT server
 
 import os
 cd=os.getcwd()
+import sys
 import paramiko
 import yaml
 import glob
@@ -14,7 +15,10 @@ import warnings
 warnings.filterwarnings('ignore')
 
 #%% Inputs
-source_config=os.path.join(cd,'configs','config.yaml')
+if len(sys.argv)==1:
+    source_config=os.path.join(cd,'configs','config_windcube_rtd.yaml')
+else:
+    source_config=sys.argv[1]
 
 #%% Functions
 def download_all_files(sftp, remote_path, local_path):
