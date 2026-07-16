@@ -21,7 +21,7 @@ source_config=os.path.join(cd,'configs','config.yaml')
 
 #%% Functions
 
-def upload_directory(sftp, local_path, remote_path,skip_file,skip_size,max_size):
+def upload_directory(sftp, local_path, remote_path,skip_file,skip_size,max_size,max_age,filename_filters):
     """
     Recursively upload a local directory to a remote SFTP server.
     """
@@ -38,6 +38,13 @@ def upload_directory(sftp, local_path, remote_path,skip_file,skip_size,max_size)
             local_file = os.path.join(root, file)
             remote_file = os.path.join(remote_path, file).replace("\\", "/")
             if os.path.basename(remote_file)!='local_file_list.txt':
+                if filename_filters and not any(s in file for s in filename_filters):
+                    logging.info(f"{file} does not contain a required string.")
+                    continue
+                file_age=(time.time()-os.path.getmtime(local_file))/(3600*24)
+                if file_age>max_age:
+                    logging.info(f"{file} exceedes maximum age for transfer.")
+                    continue
                 if os.path.getsize(local_file)<=max_size:
                     if np.sum(os.path.basename(local_file)==skip_file)==0:#file was never transfered
                         try:
@@ -106,7 +113,7 @@ except FileNotFoundError:
     skip_size=np.array([])
 
 #push local files
-upload_directory(sftp, config['push_dir'], config['remote_dir'],skip_file,skip_size,config['max_size'])
+upload_directory(sftp, config['push_dir'], config['remote_dir'],skip_file,skip_size,config['max_size'],config['max_age'],config['filename_filters'])
 logging.info("Upload completed successfully.")
 
 #terminate

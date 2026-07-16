@@ -38,12 +38,14 @@ YAML files in `configs/` (excluded from git via `.gitignore`). Key fields:
 | `log_dir` | Directory for log files |
 | `time_delete` | Days after which transferred local files are deleted |
 | `max_size` | Max file size in bytes to upload (default 200 MB) |
+| `max_age` | Max file age in days to be eligible for upload (push only) |
+| `filename_filters` | List of substrings; filename must contain at least one to be uploaded (push only, empty = no filter) |
 
 ## Key Logic
 
 **Push (`sftp_push.py`):**
 - Reads `local_file_list.txt` from the remote to know which files were already uploaded (idempotency).
-- Skips files exceeding `max_size`.
+- Skips files exceeding `max_size`, older than `max_age`, or whose filename matches none of `filename_filters`.
 - Verifies size match between local and remote after upload to detect incomplete transfers.
 - Deletes local files older than `time_delete` days after successful upload.
 - Updates `local_file_list.txt` on remote at the end of each run.
