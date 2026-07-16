@@ -40,6 +40,8 @@ YAML files in `configs/` (excluded from git via `.gitignore`). Key fields:
 | `max_size` | Max file size in bytes to upload (default 200 MB) |
 | `max_age` | Max file age in days to be eligible for upload (push only) |
 | `filename_filters` | List of substrings; filename must contain at least one to be uploaded (push only, empty = no filter) |
+| `remove_remote` | Whether to delete remote files after download (pull only) |
+| `min_age` | Min remote file age in days to be eligible for download (pull only) |
 
 ## Key Logic
 
@@ -52,7 +54,8 @@ YAML files in `configs/` (excluded from git via `.gitignore`). Key fields:
 
 **Pull (`sftp_pull.py`):**
 - Downloads all files from a flat remote directory (no recursion).
-- Deletes remote files after download.
+- Skips remote files younger than `min_age`.
+- Deletes remote files after download, unless `remove_remote` is `false`.
 - Writes a `local_file_list.txt` (filename + size pairs) and uploads it back to the server.
 
 ## Dependencies

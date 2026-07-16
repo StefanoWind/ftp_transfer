@@ -11,6 +11,7 @@ import paramiko
 import yaml
 import glob
 import logging
+import time
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
@@ -22,7 +23,7 @@ else:
     source_config=sys.argv[1]
 
 #%% Functions
-def download_all_files(sftp, remote_path, local_path):
+def download_all_files(sftp, remote_path, local_path, remove_remote, min_age):
     """
     Download all files from a single remote directory to a local directory.
     """
@@ -38,11 +39,17 @@ def download_all_files(sftp, remote_path, local_path):
             logging.warning(f"Skipping {remote_file}: subdirectories are not supported.")
             continue
 
+        file_age=(time.time()-attr.st_mtime)/(3600*24)
+        if file_age<min_age:
+            logging.info(f"Skipping {remote_file}: below minimum age for transfer.")
+            continue
+
         try:
             logging.info(f"Downloading {remote_file} -> {local_file}")
             sftp.get(remote_file, local_file)
-            sftp.remove(remote_file)
-            logging.info(f"Removed {remote_file}")
+            if remove_remote:
+                sftp.remove(remote_file)
+                logging.info(f"Removed {remote_file}")
         except Exception as e:
             logging.error(f"Failed to download/remove {remote_file}: {e}")
 
@@ -75,7 +82,7 @@ logging.basicConfig(
 #%% Main
 
 #get remote files
-download_all_files(sftp,config['remote_dir'], config['pull_dir'])
+download_all_files(sftp,config['remote_dir'], config['pull_dir'],config['remove_remote'],config['min_age'])
 logging.info("Download completed successfully.")
 
 #scan local file
