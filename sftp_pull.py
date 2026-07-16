@@ -6,6 +6,7 @@ Pull data form SFPT server
 import os
 cd=os.getcwd()
 import sys
+import stat
 import paramiko
 import yaml
 import glob
@@ -28,13 +29,22 @@ def download_all_files(sftp, remote_path, local_path):
     if not os.path.exists(local_path):
         os.makedirs(local_path)
 
-    for filename in sftp.listdir(remote_path):
+    for attr in sorted(sftp.listdir_attr(remote_path), key=lambda a: a.filename):
+        filename = attr.filename
         remote_file = f"{remote_path}/{filename}"
         local_file = os.path.join(local_path, filename)
 
-        logging.info(f"Downloading {remote_file} -> {local_file}")
-        sftp.get(remote_file, local_file)
-        sftp.remove(remote_file) 
+        if stat.S_ISDIR(attr.st_mode):
+            logging.warning(f"Skipping {remote_file}: subdirectories are not supported.")
+            continue
+
+        try:
+            logging.info(f"Downloading {remote_file} -> {local_file}")
+            sftp.get(remote_file, local_file)
+            sftp.remove(remote_file)
+            logging.info(f"Removed {remote_file}")
+        except Exception as e:
+            logging.error(f"Failed to download/remove {remote_file}: {e}")
 
 
 #%% Initialization
