@@ -6,7 +6,7 @@ Created on Fri Mar 28 16:03:34 2025
 """
 
 import os
-cd=os.getcwd()
+cd=os.path.dirname(os.path.abspath(__file__))
 import paramiko
 import yaml
 import numpy as np
